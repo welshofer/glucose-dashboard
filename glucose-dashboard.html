@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glucose Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0B0F14;
+  --surface: #111820;
+  --card: #171F2A;
+  --border: #243040;
+  --border-subtle: #1C2735;
+  --target: #34D399;
+  --low: #FBBF24;
+  --vlow: #EF4444;
+  --high: #F97316;
+  --vhigh: #DC2626;
+  --text: #F0F4F8;
+  --text2: #8899AA;
+  --text3: #556677;
+  --accent: #34D399;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Outfit', system-ui, sans-serif;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Drop Zone */
+#drop-zone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 2rem; transition: opacity 0.5s ease;
+}
+#drop-zone.hidden { display: none; }
+.drop-area {
+  width: 520px; max-width: 90vw; padding: 4rem 3rem;
+  border: 2px dashed var(--border); border-radius: 24px;
+  text-align: center; cursor: pointer; transition: all 0.3s ease;
+  background: var(--surface); position: relative; overflow: hidden;
+}
+.drop-area::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 40%, rgba(52,211,153,0.04), transparent 70%);
+  pointer-events: none;
+}
+.drop-area:hover, .drop-area.dragover {
+  border-color: var(--accent); background: var(--card);
+  transform: translateY(-2px); box-shadow: 0 20px 60px -20px rgba(52,211,153,0.15);
+}
+.drop-icon { font-size: 3rem; margin-bottom: 1.5rem; opacity: 0.6; display: block; }
+.drop-area h2 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 400; margin-bottom: 0.75rem; }
+.drop-area p { color: var(--text2); font-size: 0.9rem; font-weight: 300; line-height: 1.6; }
+.drop-area .format { margin-top: 1.5rem; font-size: 0.75rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+#file-input { display: none; }
+.brand { margin-bottom: 3rem; text-align: center; }
+.brand h1 { font-family: var(--font-display); font-size: 2.5rem; font-weight: 400; letter-spacing: -0.01em; }
+.brand p { color: var(--text3); font-size: 0.8rem; font-weight: 400; margin-top: 0.4rem; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* Dashboard */
+#dashboard {
+  display: none; max-width: 100%; margin: 0 auto;
+  padding: 2rem 3rem 4rem;
+  overflow: hidden;
+  opacity: 0; animation: fadeUp 0.8s ease forwards;
+}
+#dashboard > * { max-width: 1100px; margin-left: auto; margin-right: auto; }
+#dashboard.visible { display: block; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Header */
+.dash-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+.dash-header h1 { font-family: var(--font-display); font-size: 2.25rem; font-weight: 400; line-height: 1.1; }
+.dash-header .subtitle { color: var(--text2); font-size: 0.85rem; font-weight: 300; margin-top: 0.35rem; }
+.header-right { display: flex; align-items: flex-end; gap: 1.25rem; }
+.dash-header .meta { text-align: right; color: var(--text3); font-size: 0.75rem; font-weight: 400; letter-spacing: 0.03em; line-height: 1.7; text-transform: uppercase; }
+
+/* Settings button */
+.settings-btn {
+  background: var(--card); border: 1px solid var(--border); color: var(--text2);
+  padding: 0.45rem 0.85rem; border-radius: 10px; cursor: pointer; font-size: 0.75rem;
+  font-family: var(--font-body); font-weight: 500; letter-spacing: 0.03em;
+  transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem;
+  text-transform: uppercase; white-space: nowrap;
+}
+.settings-btn:hover { background: var(--border); color: var(--text); }
+
+/* Settings Panel */
+.settings-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.settings-overlay.open { display: flex; }
+.settings-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 2rem 2.5rem; width: 420px; max-width: 90vw;
+}
+.settings-panel h3 {
+  font-family: var(--font-display); font-size: 1.4rem; font-weight: 400; margin-bottom: 1.5rem;
+}
+.setting-group { margin-bottom: 1.5rem; }
+.setting-group label {
+  display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text3); font-weight: 500; margin-bottom: 0.5rem;
+}
+.setting-row { display: flex; align-items: center; gap: 1rem; }
+.setting-row input[type="range"] {
+  flex: 1; -webkit-appearance: none; background: var(--border); height: 4px; border-radius: 2px; outline: none;
+}
+.setting-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid var(--bg);
+}
+.setting-val {
+  font-variant-numeric: tabular-nums; font-weight: 500; font-size: 0.9rem;
+  min-width: 50px; text-align: right;
+}
+.settings-actions { display: flex; gap: 0.75rem; margin-top: 2rem; }
+.btn-primary {
+  flex: 1; background: var(--accent); color: var(--bg); border: none; border-radius: 10px;
+  padding: 0.65rem 1rem; font-family: var(--font-body); font-weight: 600; font-size: 0.85rem;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-secondary {
+  flex: 1; background: transparent; color: var(--text2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.65rem 1rem; font-family: var(--font-body); font-weight: 500;
+  font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+
+/* Stats Row */
+.stats-row {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+  background: var(--border-subtle); border-radius: 16px; overflow: hidden; margin-bottom: 2rem;
+}
+.stat-card { background: var(--surface); padding: 1.35rem 1.5rem; position: relative; }
+.stat-card .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); font-weight: 500; margin-bottom: 0.5rem; }
+.stat-card .value { font-family: var(--font-display); font-size: 2.2rem; font-weight: 400; line-height: 1; }
+.stat-card .unit { font-size: 0.75rem; color: var(--text2); font-weight: 300; margin-top: 0.25rem; }
+.stat-card .indicator { position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+
+/* Panels */
+.panel-grid {
+  display: grid; grid-template-columns: 300px 1fr; gap: 1px;
+  background: var(--border-subtle); border-radius: 16px; overflow: hidden; margin-bottom: 2rem;
+}
+.panel { background: var(--surface); padding: 1.75rem; }
+.panel-full {
+  background: var(--surface); border-radius: 16px; padding: 1.75rem;
+  margin-bottom: 2rem; border: 1px solid var(--border-subtle);
+}
+.panel-title {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text3); font-weight: 500; margin-bottom: 1.25rem;
+}
+.panel canvas { display: block; max-width: 100%; }
+.panel { overflow: hidden; }
+.panel-full { overflow: hidden; }
+
+/* Donut */
+.donut-wrap { display: flex; flex-direction: column; align-items: center; }
+.donut-legend { width: 100%; margin-top: 1.25rem; }
+.legend-item { display: flex; align-items: center; justify-content: space-between; padding: 0.45rem 0; border-bottom: 1px solid var(--border-subtle); font-size: 0.8rem; }
+.legend-item:last-child { border-bottom: none; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 0.6rem; flex-shrink: 0; }
+.legend-label { color: var(--text2); font-weight: 300; flex: 1; }
+.legend-val { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* Insights */
+.insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border-subtle); border-radius: 16px; overflow: hidden; margin-bottom: 2rem; }
+.insight-card { background: var(--surface); padding: 1.5rem 1.75rem; }
+.insight-card .insight-icon { font-size: 1.1rem; margin-bottom: 0.6rem; display: block; }
+.insight-card .insight-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); font-weight: 500; margin-bottom: 0.5rem; }
+.insight-card .insight-main { font-family: var(--font-display); font-size: 1.3rem; line-height: 1.3; margin-bottom: 0.4rem; }
+.insight-card .insight-detail { font-size: 0.8rem; color: var(--text2); font-weight: 300; line-height: 1.5; }
+.insight-highlight { color: var(--accent); }
+.insight-warn { color: var(--low); }
+
+/* DOW Chart */
+.dow-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 1rem; }
+.dow-col { text-align: center; }
+.dow-bar-wrap { height: 140px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 0.5rem; position: relative; }
+.dow-bar {
+  width: 32px; border-radius: 6px 6px 2px 2px; transition: all 0.3s ease;
+  position: relative; cursor: pointer; min-height: 4px;
+}
+.dow-bar:hover { filter: brightness(1.2); transform: scaleX(1.1); }
+.dow-label { font-size: 0.72rem; color: var(--text3); font-weight: 400; }
+.dow-avg { font-size: 0.7rem; color: var(--text2); font-weight: 500; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+.dow-tir { font-size: 0.6rem; color: var(--text3); font-weight: 400; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
+.dow-best { border-bottom: 2px solid var(--accent); padding-bottom: 0.15rem; }
+
+/* Time of Day Cards */
+.tod-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border-subtle); border-radius: 16px; overflow: hidden; margin-bottom: 2rem; }
+.tod-card { background: var(--surface); padding: 1.25rem 1.5rem; }
+.tod-card .tod-period { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); font-weight: 500; margin-bottom: 0.15rem; }
+.tod-card .tod-hours { font-size: 0.6rem; color: var(--text3); font-weight: 300; margin-bottom: 0.75rem; }
+.tod-card .tod-avg { font-family: var(--font-display); font-size: 1.8rem; line-height: 1; margin-bottom: 0.15rem; }
+.tod-card .tod-unit { font-size: 0.7rem; color: var(--text2); font-weight: 300; }
+.tod-card .tod-range { font-size: 0.72rem; color: var(--text3); font-weight: 300; margin-top: 0.6rem; font-variant-numeric: tabular-nums; }
+.tod-card .tod-tir { font-size: 0.72rem; color: var(--accent); font-weight: 500; margin-top: 0.2rem; }
+.tod-badge { display: inline-block; font-size: 0.55rem; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-left: 0.4rem; vertical-align: middle; }
+.tod-badge.best { background: rgba(52,211,153,0.15); color: var(--accent); }
+.tod-badge.watch { background: rgba(251,191,36,0.15); color: var(--low); }
+
+/* Day Nav */
+.day-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.day-nav button {
+  background: var(--card); border: 1px solid var(--border); color: var(--text2);
+  width: 36px; height: 36px; border-radius: 10px; cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.day-nav button:hover { background: var(--border); color: var(--text); }
+.day-nav .day-label { font-family: var(--font-display); font-size: 1.15rem; min-width: 200px; text-align: center; }
+.day-nav .day-stats { margin-left: auto; font-size: 0.78rem; color: var(--text3); font-weight: 300; font-variant-numeric: tabular-nums; }
+
+/* Heatmap */
+.heatmap-grid { display: grid; grid-template-columns: 50px repeat(24, 1fr); gap: 2px; margin-top: 0.75rem; }
+.hm-label { font-size: 0.68rem; color: var(--text3); display: flex; align-items: center; font-weight: 400; padding-right: 0.5rem; justify-content: flex-end; }
+.hm-label-top { font-size: 0.6rem; color: var(--text3); text-align: center; padding-bottom: 0.25rem; }
+.hm-cell { aspect-ratio: 1; border-radius: 4px; cursor: crosshair; min-height: 24px; transition: transform 0.15s, box-shadow 0.15s; }
+.hm-cell:hover { transform: scale(1.3); z-index: 2; box-shadow: 0 0 12px rgba(52,211,153,0.3); }
+
+/* Tooltip */
+.tooltip {
+  position: fixed; background: #1A2332; border: 1px solid var(--border); border-radius: 10px;
+  padding: 0.6rem 0.85rem; font-size: 0.78rem; pointer-events: none; z-index: 100;
+  opacity: 0; transition: opacity 0.15s; box-shadow: 0 8px 30px -8px rgba(0,0,0,0.5);
+  line-height: 1.5; max-width: 240px;
+}
+.tooltip.visible { opacity: 1; }
+
+/* Overview */
+.range-bar { height: 48px; background: var(--card); border-radius: 8px; position: relative; margin-top: 0.5rem; cursor: pointer; overflow: hidden; }
+.range-bar canvas { width: 100%; height: 100%; display: block; }
+
+/* Period buttons */
+.period-btns { display: flex; gap: 0.35rem; margin-left: auto; flex-shrink: 0; flex-wrap: wrap; }
+.period-btns button {
+  background: transparent; border: 1px solid var(--border); color: var(--text3);
+  padding: 0.3rem 0.7rem; border-radius: 8px; font-size: 0.7rem; font-family: var(--font-body);
+  font-weight: 500; cursor: pointer; text-transform: uppercase; letter-spacing: 0.04em; transition: all 0.2s;
+}
+.period-btns button:hover { border-color: var(--text2); color: var(--text2); }
+.period-btns button.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+@media (max-width: 1000px) {
+  .panel-grid { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+  .insights-grid { grid-template-columns: 1fr; }
+  .tod-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .dow-grid { grid-template-columns: repeat(4, 1fr); }
+  .tod-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="drop-zone">
+  <div class="brand"><h1>Glucose Dashboard</h1><p>FreeStyle Libre 3 Data Visualization</p></div>
+  <div class="drop-area" id="drop-area">
+    <span class="drop-icon">&#9678;</span>
+    <h2>Drop your CSV export</h2>
+    <p>Drag &amp; drop your FreeStyle Libre data export,<br>or click to browse files.</p>
+    <div class="format">Supports LibreView CSV format &middot; All data stays in your browser</div>
+  </div>
+  <input type="file" id="file-input" accept=".csv">
+</div>
+
+<div id="dashboard">
+  <header class="dash-header">
+    <div>
+      <h1 id="dash-title">Glucose Dashboard</h1>
+      <div class="subtitle" id="dash-subtitle"></div>
+    </div>
+    <div class="header-right">
+      <div class="meta" id="dash-meta"></div>
+      <button class="settings-btn" id="open-settings">&#9881; Ranges</button>
+    </div>
+  </header>
+
+  <div class="stats-row" id="stats-row"></div>
+
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-title">Time in Range</div>
+      <div class="donut-wrap">
+        <canvas id="donut-canvas" width="220" height="220"></canvas>
+        <div class="donut-legend" id="donut-legend"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem;">
+        <div class="panel-title" style="margin-bottom:0">Ambulatory Glucose Profile</div>
+        <div class="period-btns" id="agp-periods"></div>
+      </div>
+      <canvas id="agp-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="insights-grid" id="insights-grid"></div>
+
+  <div class="panel-full">
+    <div class="panel-title">Day of Week</div>
+    <div class="dow-grid" id="dow-grid"></div>
+  </div>
+
+  <div class="tod-grid" id="tod-grid"></div>
+
+  <div class="panel-full">
+    <div class="panel-title">Overview</div>
+    <div class="range-bar"><canvas id="overview-canvas"></canvas></div>
+  </div>
+
+  <div class="panel-full">
+    <div style="display:flex;align-items:center;margin-bottom:0.25rem;">
+      <div class="panel-title" style="margin-bottom:0">Daily Trace</div>
+      <div class="day-nav" style="flex:1;justify-content:center;">
+        <button id="day-prev">&#9666;</button>
+        <div class="day-label" id="day-label">&mdash;</div>
+        <button id="day-next">&#9656;</button>
+      </div>
+      <div class="day-stats" id="day-stats"></div>
+    </div>
+    <canvas id="daily-canvas"></canvas>
+  </div>
+
+  <div class="panel-full">
+    <div class="panel-title">Hourly Patterns</div>
+    <div class="heatmap-grid" id="heatmap"></div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-panel">
+    <h3>Target Ranges</h3>
+    <div class="setting-group">
+      <label>Very Low Threshold</label>
+      <div class="setting-row">
+        <input type="range" id="range-vlow" min="40" max="70" value="54">
+        <span class="setting-val" id="val-vlow">54 mg/dL</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>Low Threshold</label>
+      <div class="setting-row">
+        <input type="range" id="range-low" min="50" max="100" value="70">
+        <span class="setting-val" id="val-low">70 mg/dL</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>High Threshold</label>
+      <div class="setting-row">
+        <input type="range" id="range-high" min="120" max="300" value="180">
+        <span class="setting-val" id="val-high">180 mg/dL</span>
+      </div>
+    </div>
+    <div class="setting-group">
+      <label>Very High Threshold</label>
+      <div class="setting-row">
+        <input type="range" id="range-vhigh" min="200" max="400" value="250">
+        <span class="setting-val" id="val-vhigh">250 mg/dL</span>
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn-secondary" id="settings-cancel">Cancel</button>
+      <button class="btn-primary" id="settings-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+/* ═══ State ═══ */
+var DATA = [];
+var DAILY = {};
+var dayKeys = [];
+var currentDayIdx = 0;
+var agpPeriod = 'all';
+var RANGES = { vlow: 54, low: 70, high: 180, vhigh: 250 };
+var tooltip = document.getElementById('tooltip');
+var dpr = window.devicePixelRatio || 1;
+
+/* ═══ Helpers ═══ */
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function localDayStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function hideTooltip() { tooltip.classList.remove('visible'); }
+function showTooltip(x, y) {
+  tooltip.classList.add('visible');
+  tooltip.style.left = (x + 14) + 'px';
+  tooltip.style.top = (y - 10) + 'px';
+}
+function tirForValues(vals) {
+  var c = { vlow: 0, low: 0, target: 0, high: 0, vhigh: 0 };
+  for (var i = 0; i < vals.length; i++) {
+    var v = vals[i];
+    if (v < RANGES.vlow) c.vlow++;
+    else if (v < RANGES.low) c.low++;
+    else if (v <= RANGES.high) c.target++;
+    else if (v <= RANGES.vhigh) c.high++;
+    else c.vhigh++;
+  }
+  return c;
+}
+function avg(arr) { var s = 0; for (var i = 0; i < arr.length; i++) s += arr[i]; return s / arr.length; }
+function std(arr) { var m = avg(arr); var s = 0; for (var i = 0; i < arr.length; i++) s += Math.pow(arr[i] - m, 2); return Math.sqrt(s / arr.length); }
+function pct(a, b) { return b === 0 ? 0 : (a / b * 100); }
+function getActiveData() {
+  if (agpPeriod === 'all') return DATA;
+  var now = DATA[DATA.length - 1].ts;
+  var cutoffDays = { '90d': 90, '30d': 30, '14d': 14 };
+  var c = cutoffDays[agpPeriod];
+  return DATA.filter(function(d) { return (now - d.ts) / 864e5 <= c; });
+}
+function rangeColor(v) {
+  if (v < RANGES.vlow) return '#EF4444';
+  if (v < RANGES.low) return '#FBBF24';
+  if (v <= RANGES.high) return '#34D399';
+  if (v <= RANGES.vhigh) return '#F97316';
+  return '#DC2626';
+}
+
+/* ═══ File Loading ═══ */
+var dropArea = document.getElementById('drop-area');
+var fileInput = document.getElementById('file-input');
+dropArea.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', function(e) { if (e.target.files[0]) loadFile(e.target.files[0]); });
+dropArea.addEventListener('dragover', function(e) { e.preventDefault(); dropArea.classList.add('dragover'); });
+dropArea.addEventListener('dragleave', function() { dropArea.classList.remove('dragover'); });
+dropArea.addEventListener('drop', function(e) {
+  e.preventDefault(); dropArea.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+function loadFile(f) { var r = new FileReader(); r.onload = function(e) { parseCSV(e.target.result); }; r.readAsText(f); }
+
+/* ═══ CSV Parsing ═══ */
+function parseCSVLine(line) {
+  var result = [], current = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line[i];
+    if (inQ) { if (ch === '"') inQ = false; else current += ch; }
+    else { if (ch === '"') inQ = true; else if (ch === ',') { result.push(current.trim()); current = ''; } else current += ch; }
+  }
+  result.push(current.trim());
+  return result;
+}
+function parseTimestamp(str) {
+  if (!str) return null;
+  var m = str.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return null;
+  var hour = parseInt(m[4]);
+  if (m[6].toUpperCase() === 'PM' && hour < 12) hour += 12;
+  if (m[6].toUpperCase() === 'AM' && hour === 12) hour = 0;
+  return new Date(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]), hour, parseInt(m[5]));
+}
+function parseCSV(text) {
+  var lines = text.split('\n');
+  DATA = []; DAILY = {};
+  for (var i = 2; i < lines.length; i++) {
+    var cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    var glucose = cols[4] ? parseInt(cols[4]) : (cols[5] ? parseInt(cols[5]) : null);
+    if (glucose === null || isNaN(glucose)) continue;
+    var ts = parseTimestamp(cols[2]);
+    if (!ts) continue;
+    var entry = { ts: ts, glucose: glucose };
+    DATA.push(entry);
+    var ds = localDayStr(ts);
+    if (!DAILY[ds]) DAILY[ds] = [];
+    DAILY[ds].push(entry);
+  }
+  DATA.sort(function(a, b) { return a.ts - b.ts; });
+  dayKeys = Object.keys(DAILY).sort();
+  for (var k = 0; k < dayKeys.length; k++) DAILY[dayKeys[k]].sort(function(a, b) { return a.ts - b.ts; });
+  if (DATA.length === 0) { alert('No glucose data found.'); return; }
+  currentDayIdx = dayKeys.length - 1;
+  showDashboard();
+}
+
+/* ═══ Settings ═══ */
+var settingsOverlay = document.getElementById('settings-overlay');
+document.getElementById('open-settings').onclick = function() { settingsOverlay.classList.add('open'); };
+document.getElementById('settings-cancel').onclick = function() { settingsOverlay.classList.remove('open'); };
+settingsOverlay.onclick = function(e) { if (e.target === settingsOverlay) settingsOverlay.classList.remove('open'); };
+
+['vlow', 'low', 'high', 'vhigh'].forEach(function(key) {
+  var slider = document.getElementById('range-' + key);
+  var valEl = document.getElementById('val-' + key);
+  slider.value = RANGES[key];
+  valEl.textContent = RANGES[key] + ' mg/dL';
+  slider.oninput = function() { valEl.textContent = slider.value + ' mg/dL'; };
+});
+
+document.getElementById('settings-apply').onclick = function() {
+  RANGES.vlow = parseInt(document.getElementById('range-vlow').value);
+  RANGES.low = parseInt(document.getElementById('range-low').value);
+  RANGES.high = parseInt(document.getElementById('range-high').value);
+  RANGES.vhigh = parseInt(document.getElementById('range-vhigh').value);
+  settingsOverlay.classList.remove('open');
+  renderAll();
+};
+
+/* ═══ Dashboard ═══ */
+function showDashboard() {
+  document.getElementById('drop-zone').classList.add('hidden');
+  document.getElementById('dashboard').classList.add('visible');
+  renderAll();
+  setupResize();
+}
+function renderAll() {
+  renderHeader();
+  renderStats();
+  renderDonut();
+  renderAGPButtons();
+  renderAGP();
+  renderInsights();
+  renderDOW();
+  renderTOD();
+  renderOverview();
+  renderDailyTrace();
+  renderHeatmap();
+}
+
+/* ═══ Header ═══ */
+function renderHeader() {
+  var first = DATA[0].ts, last = DATA[DATA.length - 1].ts;
+  var fmt = function(d) { return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); };
+  document.getElementById('dash-title').textContent = 'Glucose Dashboard';
+  document.getElementById('dash-subtitle').textContent = fmt(first) + ' \u2014 ' + fmt(last);
+  var meta = document.getElementById('dash-meta');
+  meta.textContent = '';
+  meta.appendChild(document.createTextNode('FreeStyle Libre 3'));
+  meta.appendChild(document.createElement('br'));
+  meta.appendChild(document.createTextNode(dayKeys.length + ' days tracked'));
+}
+
+/* ═══ Stats ═══ */
+function renderStats() {
+  var active = getActiveData();
+  var vals = active.map(function(d) { return d.glucose; });
+  var mean = avg(vals);
+  var gmi = 3.31 + 0.02392 * mean;
+  var cv = (std(vals) / mean) * 100;
+  var tir = tirForValues(vals);
+  var tirPct = pct(tir.target, vals.length);
+
+  var row = document.getElementById('stats-row');
+  row.textContent = '';
+  var stats = [
+    { label: 'Average Glucose', value: mean.toFixed(1), unit: 'mg/dL', color: 'var(--accent)' },
+    { label: 'Estimated A1C (GMI)', value: gmi.toFixed(2), unit: '%', color: 'var(--accent)' },
+    { label: 'Coefficient of Variation', value: cv.toFixed(1), unit: '% \u2014 ' + (cv <= 36 ? 'Stable' : 'Variable'), color: cv <= 36 ? 'var(--accent)' : 'var(--high)' },
+    { label: 'Time in Range', value: tirPct.toFixed(1), unit: '% (' + RANGES.low + '\u2013' + RANGES.high + ')', color: 'var(--accent)' },
+    { label: 'Total Readings', value: vals.length.toLocaleString(), unit: (function() { var d = {}; for (var i = 0; i < active.length; i++) d[localDayStr(active[i].ts)] = 1; return Object.keys(d).length; })() + ' days', color: 'var(--text3)' }
+  ];
+  stats.forEach(function(s) {
+    var card = el('div', 'stat-card');
+    var ind = el('div', 'indicator'); ind.style.background = s.color;
+    card.appendChild(ind);
+    card.appendChild(el('div', 'label', s.label));
+    card.appendChild(el('div', 'value', s.value));
+    card.appendChild(el('div', 'unit', s.unit));
+    row.appendChild(card);
+  });
+}
+
+/* ═══ Donut ═══ */
+function renderDonut() {
+  var canvas = document.getElementById('donut-canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width = 220 * dpr; canvas.height = 220 * dpr;
+  canvas.style.width = '220px'; canvas.style.height = '220px';
+  ctx.scale(dpr, dpr);
+
+  var active = getActiveData();
+  var vals = active.map(function(d) { return d.glucose; });
+  var total = vals.length;
+  var tir = tirForValues(vals);
+  var segments = [
+    { count: tir.target, color: '#34D399', label: 'Target (' + RANGES.low + '\u2013' + RANGES.high + ')' },
+    { count: tir.low, color: '#FBBF24', label: 'Low (' + RANGES.vlow + '\u2013' + (RANGES.low - 1) + ')' },
+    { count: tir.vlow, color: '#EF4444', label: 'Very Low (<' + RANGES.vlow + ')' },
+    { count: tir.high, color: '#F97316', label: 'High (' + (RANGES.high + 1) + '\u2013' + RANGES.vhigh + ')' },
+    { count: tir.vhigh, color: '#DC2626', label: 'Very High (>' + RANGES.vhigh + ')' }
+  ].filter(function(s) { return s.count > 0; });
+
+  var cx = 110, cy = 110, r = 82, lw = 20, startA = -Math.PI / 2;
+  var prog = 0;
+  function draw() {
+    prog = Math.min(prog + 0.03, 1);
+    var ease = 1 - Math.pow(1 - prog, 3);
+    ctx.clearRect(0, 0, 220, 220);
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.lineWidth = lw; ctx.strokeStyle = '#1C2735'; ctx.stroke();
+    var angle = startA;
+    for (var i = 0; i < segments.length; i++) {
+      var sweep = (segments[i].count / total) * Math.PI * 2 * ease;
+      ctx.beginPath(); ctx.arc(cx, cy, r, angle, angle + sweep); ctx.lineWidth = lw; ctx.lineCap = 'butt'; ctx.strokeStyle = segments[i].color; ctx.stroke();
+      angle += sweep;
+    }
+    var mainPct = (pct(tir.target, total) * ease).toFixed(1);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#F0F4F8'; ctx.font = "400 2rem 'Instrument Serif', serif"; ctx.fillText(mainPct + '%', cx, cy - 5);
+    ctx.fillStyle = '#556677'; ctx.font = "500 0.6rem 'Outfit', sans-serif"; ctx.fillText('IN RANGE', cx, cy + 18);
+    if (prog < 1) requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  var legend = document.getElementById('donut-legend');
+  legend.textContent = '';
+  segments.forEach(function(s) {
+    var item = el('div', 'legend-item');
+    var dot = el('span', 'legend-dot'); dot.style.background = s.color;
+    item.appendChild(dot);
+    item.appendChild(el('span', 'legend-label', s.label));
+    item.appendChild(el('span', 'legend-val', pct(s.count, total).toFixed(1) + '%'));
+    legend.appendChild(item);
+  });
+}
+
+/* ═══ AGP ═══ */
+function renderAGPButtons() {
+  var container = document.getElementById('agp-periods');
+  container.textContent = '';
+  [{ key: 'all', label: 'All' }, { key: '90d', label: '90D' }, { key: '30d', label: '30D' }, { key: '14d', label: '14D' }].forEach(function(p) {
+    var btn = el('button', p.key === agpPeriod ? 'active' : '', p.label);
+    btn.dataset.period = p.key;
+    container.appendChild(btn);
+  });
+  container.onclick = function(e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    agpPeriod = btn.dataset.period;
+    container.querySelectorAll('button').forEach(function(b) { b.classList.toggle('active', b === btn); });
+    renderStats(); renderDonut(); renderAGP(); renderInsights(); renderDOW(); renderTOD(); renderHeatmap();
+  };
+}
+
+function renderAGP() {
+  var canvas = document.getElementById('agp-canvas');
+  var w = canvas.parentElement.clientWidth, h = 280;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  var ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+
+  var filtered = getActiveData();
+
+  var buckets = []; for (var b = 0; b < 288; b++) buckets.push([]);
+  for (var i = 0; i < filtered.length; i++) {
+    var slot = Math.floor((filtered[i].ts.getHours() * 60 + filtered[i].ts.getMinutes()) / 5);
+    if (slot < 288) buckets[slot].push(filtered[i].glucose);
+  }
+  var agpData = buckets.map(function(bk) {
+    if (!bk.length) return null;
+    bk.sort(function(a, b) { return a - b; });
+    var r = {};
+    [10, 25, 50, 75, 90].forEach(function(p) { r['p' + p] = bk[Math.floor((p / 100) * (bk.length - 1))]; });
+    return r;
+  });
+
+  var pad = { top: 20, right: 20, bottom: 32, left: 42 };
+  var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+  var yMin = 40, yMax = Math.max(200, RANGES.high + 20);
+  function xP(i) { return pad.left + (i / 287) * cw; }
+  function yP(v) { return pad.top + (1 - (v - yMin) / (yMax - yMin)) * ch; }
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(52,211,153,0.05)';
+  ctx.fillRect(pad.left, yP(RANGES.high), cw, yP(RANGES.low) - yP(RANGES.high));
+
+  ctx.strokeStyle = '#1C2735'; ctx.lineWidth = 1;
+  [60, 80, 100, 120, 140, 160, 180].forEach(function(v) { ctx.beginPath(); ctx.moveTo(pad.left, yP(v)); ctx.lineTo(w - pad.right, yP(v)); ctx.stroke(); });
+
+  ctx.fillStyle = '#556677'; ctx.font = '400 0.62rem Outfit, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [60, 100, 140, 180].forEach(function(v) { ctx.fillText(String(v), pad.left - 8, yP(v)); });
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (var hr = 0; hr < 24; hr += 3) {
+    var x = xP(hr * 12);
+    ctx.fillStyle = '#556677'; ctx.fillText(hr === 0 ? '12A' : hr === 12 ? '12P' : hr < 12 ? hr + 'A' : (hr - 12) + 'P', x, h - pad.bottom + 8);
+    ctx.strokeStyle = '#1C2735'; ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); ctx.stroke();
+  }
+
+  function drawBand(lo, hi, col) {
+    ctx.fillStyle = col; ctx.beginPath(); var s = false;
+    for (var i = 0; i < 288; i++) { if (!agpData[i]) continue; if (!s) { ctx.moveTo(xP(i), yP(agpData[i][hi])); s = true; } else ctx.lineTo(xP(i), yP(agpData[i][hi])); }
+    for (var j = 287; j >= 0; j--) { if (agpData[j]) ctx.lineTo(xP(j), yP(agpData[j][lo])); }
+    ctx.closePath(); ctx.fill();
+  }
+  drawBand('p10', 'p90', 'rgba(52,211,153,0.07)');
+  drawBand('p25', 'p75', 'rgba(52,211,153,0.13)');
+
+  ctx.strokeStyle = '#34D399'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
+  var s = false;
+  for (var m = 0; m < 288; m++) { if (!agpData[m]) continue; if (!s) { ctx.moveTo(xP(m), yP(agpData[m].p50)); s = true; } else ctx.lineTo(xP(m), yP(agpData[m].p50)); }
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(52,211,153,0.25)'; ctx.font = '500 0.55rem Outfit, sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(RANGES.high, pad.left + 4, yP(RANGES.high) + 3);
+  ctx.fillText(RANGES.low, pad.left + 4, yP(RANGES.low) - 11);
+
+  canvas.onmousemove = function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var slot = Math.round(((mx - pad.left) / cw) * 287);
+    if (slot < 0 || slot >= 288 || !agpData[slot]) { hideTooltip(); return; }
+    var d = agpData[slot]; var mins = slot * 5; var thr = Math.floor(mins / 60); var tmn = mins % 60;
+    tooltip.textContent = '';
+    var t1 = el('div', '', (thr === 0 ? 12 : thr > 12 ? thr - 12 : thr) + ':' + String(tmn).padStart(2, '0') + ' ' + (thr < 12 ? 'AM' : 'PM'));
+    t1.style.color = 'var(--text2)';
+    var t2 = el('div', '', 'Median: ' + d.p50 + ' mg/dL'); t2.style.fontWeight = '600';
+    var t3 = el('div', '', 'IQR: ' + d.p25 + '\u2013' + d.p75 + '  |  10\u201390th: ' + d.p10 + '\u2013' + d.p90);
+    t3.style.color = 'var(--text2)'; t3.style.fontSize = '0.72rem';
+    tooltip.appendChild(t1); tooltip.appendChild(t2); tooltip.appendChild(t3);
+    showTooltip(e.clientX, e.clientY);
+  };
+  canvas.onmouseleave = hideTooltip;
+}
+
+/* ═══ Insights ═══ */
+function renderInsights() {
+  var grid = document.getElementById('insights-grid');
+  grid.textContent = '';
+  var insights = generateInsights();
+  insights.forEach(function(ins) {
+    var card = el('div', 'insight-card');
+    card.appendChild(el('div', 'insight-icon', ins.icon));
+    card.appendChild(el('div', 'insight-title', ins.title));
+    var main = el('div', 'insight-main'); main.textContent = ins.main; card.appendChild(main);
+    var detail = el('div', 'insight-detail'); detail.textContent = ins.detail; card.appendChild(detail);
+    grid.appendChild(card);
+  });
+}
+
+function generateInsights() {
+  var insights = [];
+  var active = getActiveData();
+  var vals = active.map(function(d) { return d.glucose; });
+  var mean = avg(vals);
+
+  // 1. Best & worst day of week
+  var dowNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var dowData = computeDOW();
+  var bestDow = dowData[0], worstDow = dowData[0];
+  for (var i = 1; i < 7; i++) {
+    if (dowData[i].tirPct > bestDow.tirPct) bestDow = dowData[i];
+    if (dowData[i].tirPct < worstDow.tirPct) worstDow = dowData[i];
+  }
+  insights.push({
+    icon: '\u2605', title: 'Best Day',
+    main: bestDow.name + ' is your best day',
+    detail: 'Avg ' + bestDow.avg.toFixed(0) + ' mg/dL with ' + bestDow.tirPct.toFixed(1) + '% in range. Worst: ' + worstDow.name + ' (' + worstDow.tirPct.toFixed(1) + '%).'
+  });
+
+  // 2. Time of day analysis
+  var todData = computeTOD();
+  var bestTod = todData[0], lowTod = todData[0];
+  for (var j = 1; j < todData.length; j++) {
+    if (todData[j].tirPct > bestTod.tirPct) bestTod = todData[j];
+    if (todData[j].avg < lowTod.avg) lowTod = todData[j];
+  }
+  insights.push({
+    icon: '\u25D4', title: 'Time of Day',
+    main: bestTod.label + ' is your steadiest',
+    detail: 'Avg ' + bestTod.avg.toFixed(0) + ' mg/dL, ' + bestTod.tirPct.toFixed(1) + '% in range. Lowest average: ' + lowTod.label + ' at ' + lowTod.avg.toFixed(0) + ' mg/dL.'
+  });
+
+  // 3. Low events pattern
+  var lowByTod = [0, 0, 0, 0];
+  var lowTotal = 0;
+  for (var k = 0; k < active.length; k++) {
+    if (active[k].glucose < RANGES.low) {
+      var hr = active[k].ts.getHours();
+      if (hr < 6) lowByTod[0]++;
+      else if (hr < 12) lowByTod[1]++;
+      else if (hr < 18) lowByTod[2]++;
+      else lowByTod[3]++;
+      lowTotal++;
+    }
+  }
+  var todLabels = ['Overnight (12\u20136a)', 'Morning (6a\u201312p)', 'Afternoon (12\u20136p)', 'Evening (6p\u201312a)'];
+  var maxLowTod = 0;
+  for (var l = 1; l < 4; l++) { if (lowByTod[l] > lowByTod[maxLowTod]) maxLowTod = l; }
+  var lowPctOfAll = pct(lowTotal, active.length);
+  insights.push({
+    icon: '\u26A0', title: 'Low Events',
+    main: lowTotal + ' readings below ' + RANGES.low + ' (' + lowPctOfAll.toFixed(1) + '%)',
+    detail: lowTotal > 0 ? 'Most common ' + todLabels[maxLowTod].toLowerCase() + ' (' + lowByTod[maxLowTod] + ' of ' + lowTotal + ' lows).' : 'Excellent low avoidance across all time periods.'
+  });
+
+  // 4. Recent trend
+  var last30 = active.filter(function(d) { return (active[active.length - 1].ts - d.ts) / 864e5 <= 30; });
+  var first30 = active.filter(function(d) { return (d.ts - active[0].ts) / 864e5 <= 30; });
+  if (last30.length > 100 && first30.length > 100) {
+    var recentAvg = avg(last30.map(function(d) { return d.glucose; }));
+    var earlyAvg = avg(first30.map(function(d) { return d.glucose; }));
+    var diff = recentAvg - earlyAvg;
+    var direction = diff > 1 ? 'up' : diff < -1 ? 'down' : 'steady';
+    insights.push({
+      icon: direction === 'down' ? '\u2193' : direction === 'up' ? '\u2191' : '\u2194', title: '30-Day Trend',
+      main: direction === 'steady' ? 'Holding steady' : (Math.abs(diff).toFixed(0) + ' mg/dL ' + direction + ' vs. first 30 days'),
+      detail: 'Recent 30d avg: ' + recentAvg.toFixed(0) + ' mg/dL. First 30d avg: ' + earlyAvg.toFixed(0) + ' mg/dL.'
+    });
+  }
+
+  // 5. Stability
+  var cv = (std(vals) / mean) * 100;
+  insights.push({
+    icon: '\u2261', title: 'Glucose Stability',
+    main: cv <= 36 ? 'Remarkably stable (CV ' + cv.toFixed(1) + '%)' : 'Some variability (CV ' + cv.toFixed(1) + '%)',
+    detail: cv <= 36 ? 'Well below the 36% threshold. Your glucose stays in a tight, predictable range.' : 'Above the 36% stability threshold. Look for meal or activity patterns causing swings.'
+  });
+
+  // 6. Dawn phenomenon
+  var dawn = []; var preDawn = [];
+  for (var dp = 0; dp < active.length; dp++) {
+    var dhr = active[dp].ts.getHours();
+    if (dhr >= 4 && dhr < 7) dawn.push(active[dp].glucose);
+    if (dhr >= 2 && dhr < 4) preDawn.push(active[dp].glucose);
+  }
+  if (dawn.length > 100 && preDawn.length > 100) {
+    var dawnAvg = avg(dawn);
+    var preDawnAvg = avg(preDawn);
+    var rise = dawnAvg - preDawnAvg;
+    if (rise > 3) {
+      insights.push({
+        icon: '\u263C', title: 'Dawn Effect',
+        main: '+' + rise.toFixed(0) + ' mg/dL rise between 4\u20137 AM',
+        detail: 'Pre-dawn avg: ' + preDawnAvg.toFixed(0) + ' mg/dL \u2192 Early morning: ' + dawnAvg.toFixed(0) + ' mg/dL. This is a common physiological pattern.'
+      });
+    }
+  }
+
+  return insights;
+}
+
+/* ═══ Day of Week ═══ */
+function computeDOW() {
+  var dowNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var active = getActiveData();
+  var buckets = [[], [], [], [], [], [], []];
+  for (var i = 0; i < active.length; i++) buckets[active[i].ts.getDay()].push(active[i].glucose);
+  return buckets.map(function(vals, idx) {
+    var m = vals.length ? avg(vals) : 0;
+    var tir = tirForValues(vals);
+    return { name: dowNames[idx], avg: m, tirPct: pct(tir.target, vals.length), count: vals.length, std: vals.length ? std(vals) : 0 };
+  });
+}
+
+function renderDOW() {
+  var grid = document.getElementById('dow-grid');
+  grid.textContent = '';
+  var shortDow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var data = computeDOW();
+  var maxAvg = 0, minAvg = 999;
+  for (var i = 0; i < data.length; i++) {
+    if (data[i].avg > maxAvg) maxAvg = data[i].avg;
+    if (data[i].avg < minAvg) minAvg = data[i].avg;
+  }
+  var bestIdx = 0;
+  for (var j = 1; j < data.length; j++) { if (data[j].tirPct > data[bestIdx].tirPct) bestIdx = j; }
+
+  var barRange = maxAvg - minAvg || 1;
+  data.forEach(function(d, idx) {
+    var col = el('div', 'dow-col');
+    var wrap = el('div', 'dow-bar-wrap');
+    var barH = 30 + ((d.avg - minAvg) / barRange) * 100;
+    var bar = el('div', 'dow-bar');
+    bar.style.height = barH + 'px';
+    bar.style.background = idx === bestIdx ? 'var(--accent)' : 'rgba(52,211,153,0.25)';
+    bar.onmouseenter = function(e) {
+      tooltip.textContent = '';
+      tooltip.appendChild(el('div', '', d.name + ': Avg ' + d.avg.toFixed(1) + ' mg/dL'));
+      var t2 = el('div', '', d.tirPct.toFixed(1) + '% in range \u00B7 \u03C3 ' + d.std.toFixed(1));
+      t2.style.color = 'var(--text2)'; t2.style.fontSize = '0.72rem';
+      tooltip.appendChild(t2);
+      showTooltip(e.clientX, e.clientY);
+    };
+    bar.onmouseleave = hideTooltip;
+    wrap.appendChild(bar);
+    col.appendChild(wrap);
+    var label = el('div', 'dow-label' + (idx === bestIdx ? ' dow-best' : ''), shortDow[idx]);
+    col.appendChild(label);
+    col.appendChild(el('div', 'dow-avg', d.avg.toFixed(0)));
+    col.appendChild(el('div', 'dow-tir', d.tirPct.toFixed(1) + '% TIR'));
+    grid.appendChild(col);
+  });
+}
+
+/* ═══ Time of Day ═══ */
+function computeTOD() {
+  var periods = [
+    { label: 'Overnight', hours: '12 AM \u2013 6 AM', start: 0, end: 6 },
+    { label: 'Morning', hours: '6 AM \u2013 12 PM', start: 6, end: 12 },
+    { label: 'Afternoon', hours: '12 PM \u2013 6 PM', start: 12, end: 18 },
+    { label: 'Evening', hours: '6 PM \u2013 12 AM', start: 18, end: 24 }
+  ];
+  return periods.map(function(p) {
+    var active = getActiveData();
+    var vals = [];
+    for (var i = 0; i < active.length; i++) {
+      var hr = active[i].ts.getHours();
+      if (hr >= p.start && hr < p.end) vals.push(active[i].glucose);
+    }
+    var tir = tirForValues(vals);
+    return {
+      label: p.label, hours: p.hours, avg: vals.length ? avg(vals) : 0,
+      min: vals.length ? Math.min.apply(null, vals) : 0,
+      max: vals.length ? Math.max.apply(null, vals) : 0,
+      tirPct: pct(tir.target, vals.length), count: vals.length, std: vals.length ? std(vals) : 0
+    };
+  });
+}
+
+function renderTOD() {
+  var grid = document.getElementById('tod-grid');
+  grid.textContent = '';
+  var data = computeTOD();
+  var bestIdx = 0, watchIdx = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (data[i].tirPct > data[bestIdx].tirPct) bestIdx = i;
+    if (data[i].tirPct < data[watchIdx].tirPct) watchIdx = i;
+  }
+  data.forEach(function(d, idx) {
+    var card = el('div', 'tod-card');
+    var header = el('div', 'tod-period', d.label);
+    if (idx === bestIdx) { var badge = el('span', 'tod-badge best', 'Best'); header.appendChild(badge); }
+    if (idx === watchIdx && watchIdx !== bestIdx) { var wb = el('span', 'tod-badge watch', 'Watch'); header.appendChild(wb); }
+    card.appendChild(header);
+    card.appendChild(el('div', 'tod-hours', d.hours));
+    card.appendChild(el('div', 'tod-avg', d.avg.toFixed(0)));
+    card.appendChild(el('div', 'tod-unit', 'mg/dL avg'));
+    card.appendChild(el('div', 'tod-range', d.min + '\u2013' + d.max + ' range \u00B7 \u03C3 ' + d.std.toFixed(0)));
+    card.appendChild(el('div', 'tod-tir', d.tirPct.toFixed(1) + '% in range'));
+    grid.appendChild(card);
+  });
+}
+
+/* ═══ Overview ═══ */
+function renderOverview() {
+  var canvas = document.getElementById('overview-canvas');
+  var w = canvas.parentElement.clientWidth, h = 48;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  var ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+
+  var dailyAgg = dayKeys.map(function(k) {
+    var vals = DAILY[k].map(function(d) { return d.glucose; });
+    return { key: k, min: Math.min.apply(null, vals), max: Math.max.apply(null, vals), avg: avg(vals) };
+  });
+  var yMin = 40, yMax = 200, pv = 2;
+  function yP(v) { return pv + (1 - (Math.min(Math.max(v, yMin), yMax) - yMin) / (yMax - yMin)) * (h - pv * 2); }
+
+  ctx.clearRect(0, 0, w, h);
+  var bW = Math.max(1, (w - 4) / dailyAgg.length);
+  for (var i = 0; i < dailyAgg.length; i++) {
+    ctx.fillStyle = 'rgba(52,211,153,0.15)';
+    ctx.fillRect(2 + i * bW, yP(dailyAgg[i].max), Math.max(bW - 0.5, 1), yP(dailyAgg[i].min) - yP(dailyAgg[i].max));
+  }
+  ctx.strokeStyle = '#34D399'; ctx.lineWidth = 1.2; ctx.beginPath();
+  for (var j = 0; j < dailyAgg.length; j++) {
+    var xc = 2 + j * bW + bW / 2, yc = yP(dailyAgg[j].avg);
+    if (j === 0) ctx.moveTo(xc, yc); else ctx.lineTo(xc, yc);
+  }
+  ctx.stroke();
+
+  canvas.style.cursor = 'pointer';
+  canvas.onclick = function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var idx = Math.floor(((e.clientX - rect.left - 2) / (w - 4)) * dailyAgg.length);
+    if (idx >= 0 && idx < dayKeys.length) { currentDayIdx = idx; renderDailyTrace(); }
+  };
+  canvas.onmousemove = function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var idx = Math.floor(((e.clientX - rect.left - 2) / (w - 4)) * dailyAgg.length);
+    if (idx < 0 || idx >= dailyAgg.length) { hideTooltip(); return; }
+    var d = dailyAgg[idx]; var dt = new Date(d.key + 'T12:00:00');
+    tooltip.textContent = '';
+    var t1 = el('div', '', dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })); t1.style.fontWeight = '600';
+    tooltip.appendChild(t1);
+    tooltip.appendChild(el('div', '', 'Avg: ' + d.avg.toFixed(0) + '  |  ' + d.min + '\u2013' + d.max + ' mg/dL'));
+    showTooltip(e.clientX, e.clientY - 40);
+  };
+  canvas.onmouseleave = hideTooltip;
+}
+
+/* ═══ Daily Trace ═══ */
+function renderDailyTrace() {
+  var canvas = document.getElementById('daily-canvas');
+  var w = canvas.parentElement.clientWidth, h = 250;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  var ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+
+  var dayStr = dayKeys[currentDayIdx];
+  var readings = DAILY[dayStr] || [];
+  var dt = new Date(dayStr + 'T12:00:00');
+  document.getElementById('day-label').textContent = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  if (readings.length > 0) {
+    var vals = readings.map(function(d) { return d.glucose; });
+    var m = avg(vals);
+    var tir = tirForValues(vals);
+    document.getElementById('day-stats').textContent =
+      'Avg ' + m.toFixed(0) + ' \u00B7 ' + pct(tir.target, vals.length).toFixed(0) + '% TIR \u00B7 ' + Math.min.apply(null, vals) + '\u2013' + Math.max.apply(null, vals);
+  } else {
+    document.getElementById('day-stats').textContent = 'No data';
+  }
+
+  var pad = { top: 16, right: 20, bottom: 32, left: 42 };
+  var cw = w - pad.left - pad.right, ch = h - pad.top - pad.bottom;
+  var yMin = 40, yMax = Math.max(200, RANGES.high + 20);
+  function xP(d) { return pad.left + ((d.ts.getHours() * 60 + d.ts.getMinutes()) / 1440) * cw; }
+  function yP(v) { return pad.top + (1 - (Math.min(Math.max(v, yMin), yMax) - yMin) / (yMax - yMin)) * ch; }
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(52,211,153,0.04)';
+  ctx.fillRect(pad.left, yP(RANGES.high), cw, yP(RANGES.low) - yP(RANGES.high));
+
+  ctx.strokeStyle = '#1C2735'; ctx.lineWidth = 1;
+  [60, 80, 100, 120, 140, 160, 180].forEach(function(v) { ctx.beginPath(); ctx.moveTo(pad.left, yP(v)); ctx.lineTo(w - pad.right, yP(v)); ctx.stroke(); });
+
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(52,211,153,0.2)';
+  [RANGES.low, RANGES.high].forEach(function(v) { ctx.beginPath(); ctx.moveTo(pad.left, yP(v)); ctx.lineTo(w - pad.right, yP(v)); ctx.stroke(); });
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#556677'; ctx.font = '400 0.62rem Outfit, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  [60, 100, 140, 180].forEach(function(v) { ctx.fillText(String(v), pad.left - 8, yP(v)); });
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (var hr = 0; hr < 24; hr += 3) {
+    var x = pad.left + (hr / 24) * cw;
+    ctx.fillStyle = '#556677'; ctx.fillText(hr === 0 ? '12A' : hr === 12 ? '12P' : hr < 12 ? hr + 'A' : (hr - 12) + 'P', x, h - pad.bottom + 8);
+    ctx.strokeStyle = '#1C2735'; ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); ctx.stroke();
+  }
+
+  if (readings.length === 0) return;
+
+  var grad = ctx.createLinearGradient(0, pad.top, 0, h - pad.bottom);
+  grad.addColorStop(0, 'rgba(52,211,153,0.15)'); grad.addColorStop(1, 'rgba(52,211,153,0)');
+  ctx.fillStyle = grad; ctx.beginPath();
+  ctx.moveTo(xP(readings[0]), h - pad.bottom);
+  for (var ri = 0; ri < readings.length; ri++) ctx.lineTo(xP(readings[ri]), yP(readings[ri].glucose));
+  ctx.lineTo(xP(readings[readings.length - 1]), h - pad.bottom); ctx.closePath(); ctx.fill();
+
+  ctx.strokeStyle = '#34D399'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.beginPath();
+  for (var li = 0; li < readings.length; li++) {
+    if (li === 0) ctx.moveTo(xP(readings[li]), yP(readings[li].glucose));
+    else ctx.lineTo(xP(readings[li]), yP(readings[li].glucose));
+  }
+  ctx.stroke();
+
+  for (var di = 0; di < readings.length; di++) {
+    if (readings[di].glucose < RANGES.low) {
+      ctx.fillStyle = readings[di].glucose < RANGES.vlow ? '#EF4444' : '#FBBF24';
+      ctx.beginPath(); ctx.arc(xP(readings[di]), yP(readings[di].glucose), 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  canvas.onmousemove = function(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mins = ((e.clientX - rect.left - pad.left) / cw) * 1440;
+    var closest = readings[0], minDist = Infinity;
+    for (var ci = 0; ci < readings.length; ci++) {
+      var rMins = readings[ci].ts.getHours() * 60 + readings[ci].ts.getMinutes();
+      var dist = Math.abs(rMins - mins);
+      if (dist < minDist) { minDist = dist; closest = readings[ci]; }
+    }
+    if (minDist > 30) { hideTooltip(); return; }
+    tooltip.textContent = '';
+    var t1 = el('div', '', closest.ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })); t1.style.color = 'var(--text2)';
+    var t2 = el('div', '', closest.glucose + ' mg/dL'); t2.style.color = rangeColor(closest.glucose); t2.style.fontWeight = '600';
+    tooltip.appendChild(t1); tooltip.appendChild(t2);
+    showTooltip(e.clientX, e.clientY);
+  };
+  canvas.onmouseleave = hideTooltip;
+}
+
+document.getElementById('day-prev').onclick = function() { if (currentDayIdx > 0) { currentDayIdx--; renderDailyTrace(); } };
+document.getElementById('day-next').onclick = function() { if (currentDayIdx < dayKeys.length - 1) { currentDayIdx++; renderDailyTrace(); } };
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowLeft') document.getElementById('day-prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('day-next').click();
+});
+
+/* ═══ Heatmap ═══ */
+function renderHeatmap() {
+  var grid = document.getElementById('heatmap');
+  grid.textContent = '';
+  var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var active = getActiveData();
+  var buckets = {};
+  for (var i = 0; i < active.length; i++) {
+    var dow = (active[i].ts.getDay() + 6) % 7;
+    var hr = active[i].ts.getHours();
+    var key = dow + '-' + hr;
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push(DATA[i].glucose);
+  }
+  var avgs = {}, gMin = 200, gMax = 40;
+  for (var bk in buckets) {
+    if (!buckets.hasOwnProperty(bk)) continue;
+    var a = avg(buckets[bk]); avgs[bk] = a;
+    if (a < gMin) gMin = a; if (a > gMax) gMax = a;
+  }
+
+  grid.appendChild(el('div', ''));
+  for (var hdr = 0; hdr < 24; hdr++) {
+    var lbl = hdr % 3 === 0 ? (hdr === 0 ? '12a' : hdr === 12 ? '12p' : hdr < 12 ? hdr + 'a' : (hdr - 12) + 'p') : '';
+    grid.appendChild(el('div', 'hm-label-top', lbl));
+  }
+
+  for (var dow = 0; dow < 7; dow++) {
+    grid.appendChild(el('div', 'hm-label', days[dow]));
+    for (var hour = 0; hour < 24; hour++) {
+      var ck = dow + '-' + hour;
+      var cell = el('div', 'hm-cell');
+      var av = avgs[ck];
+      if (av !== undefined) {
+        var t = (av - gMin) / (gMax - gMin || 1);
+        var r = Math.round(52 + t * (251 - 52));
+        var g = Math.round(211 + t * (191 - 211));
+        var b = Math.round(153 + t * (36 - 153));
+        cell.style.background = 'rgba(' + r + ',' + g + ',' + b + ',' + (0.35 + t * 0.45) + ')';
+        (function(ck, av, dow, hour) {
+          cell.onmouseenter = function(e) {
+            var hStr = (hour === 0 ? '12' : hour > 12 ? hour - 12 : hour) + ':00 ' + (hour < 12 ? 'AM' : 'PM');
+            tooltip.textContent = '';
+            var l1 = el('div', '', days[dow] + ' ' + hStr); l1.style.fontWeight = '600';
+            tooltip.appendChild(l1);
+            tooltip.appendChild(el('div', '', 'Avg: ' + av.toFixed(0) + ' mg/dL'));
+            var l3 = el('div', '', buckets[ck].length.toLocaleString() + ' readings'); l3.style.color = 'var(--text2)';
+            tooltip.appendChild(l3);
+            showTooltip(e.clientX, e.clientY);
+          };
+          cell.onmouseleave = hideTooltip;
+        })(ck, av, dow, hour);
+      } else {
+        cell.style.background = '#111820';
+      }
+      grid.appendChild(cell);
+    }
+  }
+}
+
+/* ═══ Resize ═══ */
+function setupResize() {
+  var t; window.addEventListener('resize', function() {
+    clearTimeout(t); t = setTimeout(function() { renderAGP(); renderOverview(); renderDailyTrace(); }, 200);
+  });
+}
+</script>
+</body>
+</html>
