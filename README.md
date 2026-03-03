@@ -1,6 +1,6 @@
 # Glucose Dashboard
 
-A beautiful, interactive visualization tool for FreeStyle Libre continuous glucose monitor (CGM) data. Single HTML file — no installation, no server, no data uploaded anywhere.
+A beautiful, interactive visualization tool for continuous glucose monitor (CGM) data from FreeStyle Libre and Dexcom devices. Single HTML file — no installation, no server, no data uploaded anywhere.
 
 ![Glucose Dashboard](screenshots/dashboard.png)
 
@@ -22,7 +22,7 @@ A beautiful, interactive visualization tool for FreeStyle Libre continuous gluco
 
 1. **Download** `glucose-dashboard.html` (that's the entire app — one file)
 2. **Open** it in any modern browser (Chrome, Firefox, Safari, Edge)
-3. **Export** your data from [LibreView](https://www.libreview.com) as CSV
+3. **Export** your data from [LibreView](https://www.libreview.com) or [Dexcom Clarity](https://clarity.dexcom.com) as CSV
 4. **Drop** the CSV file onto the dashboard
 
 That's it. No install. No account. No internet required (fonts fall back gracefully offline).
@@ -38,6 +38,12 @@ That's it. No install. No account. No internet required (fonts fall back gracefu
 ### From FreeStyle Libre App
 The app itself doesn't export CSV directly — use LibreView (it syncs automatically if connected).
 
+### From Dexcom Clarity (web)
+1. Log in to [clarity.dexcom.com](https://clarity.dexcom.com)
+2. Go to any **Reports** page
+3. Click the **Export** icon (top right)
+4. Select your date range and download the CSV file
+
 ## Privacy
 
 **Your data never leaves your computer.** The dashboard is a static HTML file that processes everything in your browser using JavaScript. There is no server, no analytics, no tracking, no cookies. The only network requests are loading two Google Fonts (Instrument Serif and Outfit), which fall back to system fonts if blocked.
@@ -46,10 +52,11 @@ The app itself doesn't export CSV directly — use LibreView (it syncs automatic
 
 | CGM Device | Supported |
 |---|---|
-| FreeStyle Libre 3 | Yes |
-| FreeStyle Libre 2 | Yes (same CSV format) |
-| FreeStyle Libre 14 Day | Yes (same CSV format) |
-| Dexcom, Medtronic, etc. | Not yet — PRs welcome |
+| FreeStyle Libre 3 | Yes (via LibreView CSV) |
+| FreeStyle Libre 2 | Yes (via LibreView CSV) |
+| FreeStyle Libre 14 Day | Yes (via LibreView CSV) |
+| Dexcom G6 / G7 | Yes (via Clarity CSV) |
+| Medtronic, etc. | Not yet — PRs welcome |
 
 ## Browser Support
 
@@ -88,7 +95,6 @@ All charts, stats, and insights recalculate immediately when you apply new range
 ## Contributing
 
 PRs welcome. Some ideas:
-- Support for Dexcom Clarity CSV format
 - Support for Medtronic CareLink CSV format
 - Data export / PDF report generation
 - Meal / insulin event overlay on daily trace

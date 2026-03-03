@@ -471,7 +471,7 @@ function parseCSVLine(line) {
   result.push(current.trim());
   return result;
 }
-function parseTimestamp(str) {
+function parseLibreTimestamp(str) {
   if (!str) return null;
   var m = str.match(/(\d{2})-(\d{2})-(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!m) return null;
@@ -480,15 +480,44 @@ function parseTimestamp(str) {
   if (m[6].toUpperCase() === 'AM' && hour === 12) hour = 0;
   return new Date(parseInt(m[3]), parseInt(m[1]) - 1, parseInt(m[2]), hour, parseInt(m[5]));
 }
-function parseCSV(text) {
-  var lines = text.split('\n');
-  DATA = []; DAILY = {};
-  for (var i = 2; i < lines.length; i++) {
+function parseDexcomTimestamp(str) {
+  if (!str) return null;
+  var m = str.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6]));
+}
+function detectCSVFormat(lines) {
+  if (lines.length < 2) return null;
+  var firstLine = lines[0].toLowerCase();
+  if (firstLine.indexOf('timestamp (yyyy-mm-dd') !== -1 && firstLine.indexOf('glucose value') !== -1) return 'dexcom';
+  if (firstLine.indexOf('index') !== -1 && firstLine.indexOf('event type') !== -1) return 'dexcom';
+  var secondLine = lines[1].toLowerCase();
+  if (secondLine.indexOf('freestyle libre') !== -1 || secondLine.indexOf('libreview') !== -1) return 'libre';
+  if (lines.length > 2) {
+    var testLine = lines[2];
+    if (testLine.match(/\d{2}-\d{2}-\d{4}\s+\d{1,2}:\d{2}\s*(AM|PM)/i)) return 'libre';
+  }
+  return 'libre';
+}
+function parseDexcomCSV(lines) {
+  var headers = parseCSVLine(lines[0]);
+  var tsIdx = -1, glucoseIdx = -1, eventTypeIdx = -1;
+  for (var h = 0; h < headers.length; h++) {
+    var hdr = headers[h].toLowerCase();
+    if (hdr.indexOf('timestamp') !== -1 && hdr.indexOf('yyyy') !== -1) tsIdx = h;
+    if (hdr === 'glucose value (mg/dl)') glucoseIdx = h;
+    if (hdr === 'event type') eventTypeIdx = h;
+  }
+  if (tsIdx === -1 || glucoseIdx === -1) return false;
+  for (var i = 1; i < lines.length; i++) {
     var cols = parseCSVLine(lines[i]);
-    if (cols.length < 5) continue;
-    var glucose = cols[4] ? parseInt(cols[4]) : (cols[5] ? parseInt(cols[5]) : null);
-    if (glucose === null || isNaN(glucose)) continue;
-    var ts = parseTimestamp(cols[2]);
+    if (cols.length <= Math.max(tsIdx, glucoseIdx)) continue;
+    if (eventTypeIdx !== -1 && cols[eventTypeIdx] !== 'EGV') continue;
+    var glucoseStr = cols[glucoseIdx];
+    if (!glucoseStr || glucoseStr === '' || glucoseStr.toLowerCase() === 'low' || glucoseStr.toLowerCase() === 'high') continue;
+    var glucose = parseInt(glucoseStr);
+    if (isNaN(glucose)) continue;
+    var ts = parseDexcomTimestamp(cols[tsIdx]);
     if (!ts) continue;
     var entry = { ts: ts, glucose: glucose };
     DATA.push(entry);
@@ -496,10 +525,34 @@ function parseCSV(text) {
     if (!DAILY[ds]) DAILY[ds] = [];
     DAILY[ds].push(entry);
   }
+  return true;
+}
+function parseLibreCSV(lines) {
+  for (var i = 2; i < lines.length; i++) {
+    var cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    var glucose = cols[4] ? parseInt(cols[4]) : (cols[5] ? parseInt(cols[5]) : null);
+    if (glucose === null || isNaN(glucose)) continue;
+    var ts = parseLibreTimestamp(cols[2]);
+    if (!ts) continue;
+    var entry = { ts: ts, glucose: glucose };
+    DATA.push(entry);
+    var ds = localDayStr(ts);
+    if (!DAILY[ds]) DAILY[ds] = [];
+    DAILY[ds].push(entry);
+  }
+  return true;
+}
+function parseCSV(text) {
+  var lines = text.split('\n').filter(function(l) { return l.trim() !== ''; });
+  DATA = []; DAILY = {};
+  var format = detectCSVFormat(lines);
+  if (format === 'dexcom') parseDexcomCSV(lines);
+  else parseLibreCSV(lines);
   DATA.sort(function(a, b) { return a.ts - b.ts; });
   dayKeys = Object.keys(DAILY).sort();
   for (var k = 0; k < dayKeys.length; k++) DAILY[dayKeys[k]].sort(function(a, b) { return a.ts - b.ts; });
-  if (DATA.length === 0) { alert('No glucose data found.'); return; }
+  if (DATA.length === 0) { alert('No glucose data found. Supported formats: LibreView CSV, Dexcom Clarity CSV'); return; }
   currentDayIdx = dayKeys.length - 1;
   showDashboard();
 }
