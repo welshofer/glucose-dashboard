@@ -1,5 +1,7 @@
 # Personal data files
 *.csv
+# Synthetic sample data, safe to commit
+!sample-data/sample-libreview.csv
 
 # macOS
 .DS_Store

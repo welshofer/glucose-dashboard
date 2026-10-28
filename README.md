@@ -2,8 +2,6 @@
 
 A beautiful, interactive visualization tool for continuous glucose monitor (CGM) data from FreeStyle Libre and Dexcom devices. Single HTML file — no installation, no server, no data uploaded anywhere.
 
-![Glucose Dashboard](screenshots/dashboard.png)
-
 ## Features
 
 - **Key Metrics** — Average glucose, estimated A1C (GMI), coefficient of variation, time in range, and total readings at a glance
@@ -26,6 +24,8 @@ A beautiful, interactive visualization tool for continuous glucose monitor (CGM)
 4. **Drop** the CSV file onto the dashboard
 
 That's it. No install. No account. No internet required (fonts fall back gracefully offline).
+
+Want to look around before using your own data? Drop `sample-data/sample-libreview.csv` onto the dashboard. It's 30 days of made-up readings from `scripts/make_sample_csv.py`, not anyone's real data.
 
 ## How to Export Your Data
 
